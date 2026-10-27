@@ -1,10 +1,11 @@
 import { model, Schema, HydratedDocument } from "mongoose";
 import { Gender, Role, System } from "../../modules/commen/enums";
+import { generateHash } from "../../modules/commen/utils/hash";
 
 export interface IUser {
   fName: string;
   lName: string;
-  fullname?: string; // virtual
+  fullname?: string;
   email: string;
   password: string;
   phone?: string;
@@ -104,6 +105,33 @@ userSchema
     this.fName = fName;
     this.lName = lName;
   });
+
+userSchema.pre("save", async function () {
+  if (this.isModified("password")) {
+    this.password = await generateHash(this.password);
+  }
+});
+
+userSchema.pre("save", async function () {
+  if (!this.isNew && this.isModified("password")) {
+    this.changeCredentialsTime = new Date();
+  }
+});
+
+userSchema.post("save", function (doc) {
+  console.log(`user saved: ${doc.email}`);
+});
+
+userSchema.pre(["find", "findOne"], function () {
+  this.where({ isActive: { $ne: false } });
+});
+
+userSchema.pre("insertMany", async function (docs: any) {
+  const list = Array.isArray(docs) ? docs : [docs];
+  for (const doc of list) {
+    doc.password = await generateHash(doc.password);
+  }
+});
 
 export type HUserDocument = HydratedDocument<IUser>;
 

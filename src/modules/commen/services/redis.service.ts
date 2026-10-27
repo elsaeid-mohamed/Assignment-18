@@ -94,6 +94,9 @@ class RedisService {
   async keys(prefix: string) {
     return await this.client.keys(`${prefix}*`);
   }
+
+  revokeTokenKey = (userId: string, jti: string) =>
+  `REVOKE_TOKEN::${userId}::${jti}`;
 }
 
 const redisService = new RedisService();

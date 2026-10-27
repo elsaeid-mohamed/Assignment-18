@@ -1,11 +1,11 @@
 import { UserRepository } from "../../DB/repo/user.repository";
 import {
   ConflictException,
-  NotFoundException,
   UnauthorizedException,
 } from "../commen/response";
-import { compareHash, generateHash } from "../commen/utils/hash";
+import { compareHash } from "../commen/utils/hash";
 import { ILogin, ISignUp } from "./dto/auth.dto";
+import tokenService from "../commen/services/token.service";
 
 class AuthService {
   private userRepo: UserRepository;
@@ -20,7 +20,7 @@ class AuthService {
     const user = await this.userRepo.findOne({ filter: { email } });
 
     if (!user) {
-      throw new NotFoundException("user not found");
+      throw new UnauthorizedException("invalid email or password");
     }
 
     const isMatch = await compareHash(password, user.password);
@@ -28,7 +28,10 @@ class AuthService {
       throw new UnauthorizedException("invalid email or password");
     }
 
-    return { user };
+    const { accessToken, refreshToken } = tokenService.generateTokens(user);
+    const { password: _pw, ...safeUser } = user.toJSON();
+
+    return { user: safeUser, accessToken, refreshToken };
   }
 
   async signUp(data: ISignUp) {
@@ -41,10 +44,12 @@ class AuthService {
     }
 
     const user = await this.userRepo.createOne({
-      data: { email, password: await generateHash(password), ...userData },
+      data: { email, password, ...userData },
     });
 
-    return { user };
+    const { password: _pw, ...safeUser } = user.toJSON();
+
+    return { user: safeUser };
   }
 }
 
